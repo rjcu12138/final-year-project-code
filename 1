@@ -1,0 +1,612 @@
+############################################################
+# Dual‑sex cohort‑component population projection (2020‑2100)
+# Using Lee‑Carter‑derived mortality parameters instead of
+# constant geometric decline.  Fully runnable R script.
+############################################################
+
+###########################
+# 0. Load / install packages
+###########################
+required_packages <- c("ggplot2", "reshape2", "scales", "openxlsx")
+invisible(lapply(required_packages, function(pkg) {
+  if (!requireNamespace(pkg, quietly = TRUE)) install.packages(pkg)
+  library(pkg, character.only = TRUE)
+}))
+
+###########################
+# 1. Input data (2020 base population)
+###########################
+# 5‑year age groups 0‑4 … 100+
+age_groups   <- c("0-4","5-9","10-14","15-19","20-24","25-29","30-34",
+                  "35-39","40-44","45-49","50-54","55-59","60-64","65-69",
+                  "70-74","75-79","80-84","85-89","90-94","95-99","100+")
+age_midpoints <- seq(2.5, 102.5, 5)
+
+age_labels <- paste0("age", seq(0, 100, 5))   # same length as age_groups
+
+# --- 1.1 Population by age & sex (million‑level example numbers) ---
+initial_pop_male <- c(
+  40969331, 48017458, 45606790, 39053343, 39675995, 48162270,
+  63871808, 50932037, 47632694, 58191686, 61105470, 50816026,
+  36871125, 36337923, 24162733, 14752433,  9157003,  4426091,
+  1367594,   271455,    35129)
+initial_pop_female <- c(
+  36914557, 42226598, 39649204, 33630797, 35265680, 43685062,
+  60273382, 48080895, 45322636, 56033201, 60058826, 50584760,
+  36511813, 37667637, 25427303, 16486416, 11225875,  6400439,
+  2285155,   548357,    83737)
+
+names(initial_pop_male)   <- age_labels
+names(initial_pop_female) <- age_labels
+
+###########################
+# 2. Historical qx (probability of dying in 5‑year interval)
+#    for Lee‑Carter parameter estimation
+###########################
+
+qx_male_2000 <- c(0.005253, 0.000645, 0.000505, 0.000771, 0.001211, 0.001357, 
+                  0.001657, 0.00215 , 0.00305 , 0.004327, 0.00671 , 0.010572,
+                  0.017916, 0.029595, 0.051027, 0.07989 , 0.133277, 0.188755,
+                  0.268625, 0.241401, 0.329415)
+qx_male_2005 <- c(0.00299, 0.000534, 0.000486, 0.000865, 0.001263, 0.001411, 
+                  0.001727, 0.002176, 0.002977, 0.004324, 0.005861, 0.008849, 
+                  0.014292, 0.023704, 0.039186, 0.063018, 0.100556, 0.155251, 
+                  0.224956, 0.31962, 0.392157)
+qx_male_2010 <- c(0.001314, 0.000356, 0.000368, 0.00052 , 0.000703, 0.000844, 
+                  0.001109, 0.001588, 0.002373, 0.003503, 0.005485, 0.00804 , 
+                  0.01302 , 0.021257, 0.037015, 0.059132, 0.09856 , 0.146531,
+                  0.211655, 0.212067, 0.507276)
+qx_male_2015 <- c(0.000877, 0.000236, 0.000256, 0.00045, 0.000446, 0.000583, 
+                  0.000789, 0.001157, 0.001784, 0.00268, 0.003973, 0.006784, 
+                  0.009977, 0.015935, 0.026767, 0.043595, 0.074284, 0.10971, 
+                  0.155486, 0.192661, 0.268817)
+qx_male_2020 <- c(0.0006036,0.000157 ,0.000211 ,0.000358 ,0.000446 ,0.000557,
+                  0.000691 ,0.001082 ,0.001805 ,0.002783 ,0.004092 ,0.005974,
+                  0.010514 ,0.015272 ,0.024952 ,0.042791 ,0.072455 ,0.113298,
+                  0.159348 ,0.191126 ,0.211449)
+
+
+qx_female_2000 <- c(0.00698 ,0.000441,0.000333,0.000475,0.000724,0.00084 ,
+                    0.000981,0.001185,0.001699,0.00257 ,0.004187,0.006632,
+                    0.011426,0.01906 ,0.034113,0.055705,0.097484,0.14536 ,
+                    0.231229,0.29802 ,0.375236)
+qx_female_2005 <- c(0.003639, 0.000286, 0.000274, 0.000438, 0.000512, 0.0006, 
+                    0.000788, 0.00106, 0.001288, 0.002201, 0.003267, 0.005197, 
+                    0.008951, 0.015139, 0.02607, 0.045332, 0.075946, 0.118513, 
+                    0.191788, 0.235944, 0.321767)
+qx_female_2010 <- c(0.001267,0.000235,0.000219,0.000246,0.000304,0.000367,
+                    0.0005  ,0.000713,0.001113,0.001685,0.002811,0.00429 ,
+                    0.007492,0.013055,0.024356,0.040888,0.073985,0.115287,
+                    0.180245,0.219464,0.436343)
+qx_female_2015 <- c(0.000752, 0.000155, 0.000145, 0.00018, 0.000168, 0.000213, 
+                    0.000311, 0.000524, 0.000801, 0.001254, 0.001779, 0.003305, 
+                    0.00506, 0.008802, 0.015814, 0.029546, 0.052084, 0.082632, 
+                    0.130756, 0.18468, 0.29453)
+qx_female_2020 <- c(0.0004934,0.00012 ,0.000149,0.000197,0.000214,0.000242,
+                    0.000292,0.000429,0.000702,0.00117 ,0.001811,0.002601,
+                    0.004812,0.007833,0.014471,0.027714,0.052787,0.089934,
+                    0.144825,0.192801,0.246904)
+
+# --- 2.1 Assemble matrices (rows = age, cols = years) ---
+
+hist_years <- c(2000, 2005, 2010, 2015, 2020)
+
+
+mx_male_hist   <- matrix(c(qx_male_2000, qx_male_2005, qx_male_2010, qx_male_2015, qx_male_2020), 
+                         ncol = 5, dimnames = list(age_labels, as.character(hist_years)))
+mx_female_hist <- matrix(c(qx_female_2000, qx_female_2005, qx_female_2010, qx_female_2015, qx_female_2020), 
+                         ncol = 5, dimnames = list(age_labels, as.character(hist_years)))
+
+# --- 2.2 Lee‑Carter parameter estimation helper ---
+lee_carter_est <- function(logmx_mat) {
+  ax <- rowMeans(logmx_mat)
+  centered <- sweep(logmx_mat, 1, ax)
+  sv <- svd(centered)
+  bx <- sv$u[,1]
+  kt <- sv$d[1] * sv$v[,1]
+  # Normalise bx so Σ|bx| = 1 and ensure kt decreases over time
+  bx <- bx / sum(abs(bx))
+  if (kt[1] < kt[length(kt)]) { bx <- -bx; kt <- -kt }
+  list(ax = ax, bx = bx, kt = kt)
+}
+
+male_par   <- lee_carter_est(log(mx_male_hist))
+female_par <- lee_carter_est(log(mx_female_hist))
+
+# --- 2.3 Smooth bx with cubic spline to reduce jaggedness ---
+sm_bx <- function(bx) predict(smooth.spline(age_midpoints, bx, spar = 0.6))$y / sum(abs(bx))
+male_par$bx   <- sm_bx(male_par$bx)
+female_par$bx <- sm_bx(female_par$bx)
+###########################
+# 3. kt projection to 2100 (simple drift‑with‑deceleration)
+###########################
+predict_kt <- function(kt_hist, hist_years, target_years, decel = 0.995) {
+
+  drift <- (kt_hist[length(kt_hist)] - kt_hist[length(kt_hist)-1]) /
+    (hist_years[length(hist_years)] - hist_years[length(hist_years)-1])
+  
+  kt_all <- numeric(length(target_years))
+  kt_all[1] <- kt_hist[length(kt_hist)]
+  
+  for (i in 2:length(target_years)) {
+    drift <- drift * decel
+    kt_all[i] <- kt_all[i-1] + drift
+  }
+  kt_all
+}
+
+
+hist_years <- c(2000, 2005, 2010, 2015, 2020)
+proj_years_1 <- 2021:2100
+
+kt_male_proj   <- predict_kt(male_par$kt,   hist_years, proj_years_1)
+kt_female_proj <- predict_kt(female_par$kt, hist_years, proj_years_1)
+
+kt_male_all   <- c(male_par$kt,   kt_male_proj)
+kt_female_all <- c(female_par$kt, kt_female_proj)
+years_all     <- c(hist_years,    proj_years_1)
+###########################
+# 4. Convert kt/ax/bx to qx matrix (projection years 2020‑2100, step = 5)
+###########################
+# helper: mx -> qx for 5‑year interval
+mx_to_qx <- function(mx, n = 5) 1 - exp(-mx * n)
+
+# select columns for every 5th year starting 2020
+proj_years <- seq(2020, 2100, 5)
+sel_idx <- match(as.character(proj_years), as.character(years_all))
+
+make_qx_matrix <- function(ax, bx, kt_all) {
+  logmx <- outer(ax, rep(1, length(sel_idx))) + outer(bx, kt_all[sel_idx])
+  mx    <- exp(logmx)
+  mx_to_qx(mx)
+}
+
+qx_matrix_male   <- make_qx_matrix(male_par$ax,   male_par$bx,   kt_male_all)
+qx_matrix_female <- make_qx_matrix(female_par$ax, female_par$bx, kt_female_all)
+colnames(qx_matrix_male) <- colnames(qx_matrix_female) <- as.character(proj_years)
+rownames(qx_matrix_male) <- rownames(qx_matrix_female) <- age_labels
+
+###########################
+# 5. Fertility inputs (unchanged from earlier script)
+###########################
+base_asfr <- c(0.006, 0.055, 0.099, 0.065, 0.045, 0.008, 0.001)
+names(base_asfr) <- paste0("age", seq(15, 45, 5))
+
+tsfr_series <- c(
+  "2020" = 1.08,"2025" = 1.038,"2030" = 1.076,"2035" = 1.1120,"2040" = 1.1420,
+  "2045" = 1.1680,"2050" = 1.1920,"2055" = 1.2180,"2060" = 1.2380,"2065" = 1.2580,
+  "2070" = 1.2740,"2075" = 1.2880,"2080" = 1.3020,"2085" = 1.3140,"2090" = 1.3280,
+  "2095" = 1.3380,"2100" = 1.35)
+
+###########################
+# 6. Projection engine (same as before)
+###########################
+# 6.1 helper functions
+adjust_asfr <- function(base_asfr, target_tfr, age_width = 5) {
+  base_asfr * (target_tfr / sum(base_asfr * age_width))
+}
+get_births_by_sex <- function(total_births, srb = 105) {
+  r <- srb / 100; male <- total_births * r / (1 + r); c(male = male, female = total_births - male)
+}
+
+# 6.2 main function
+population_projection <- function(start_year, end_year, step, init_m, init_f,
+                                  qx_m, qx_f, base_asfr, tfr_vec, srb = 105) {
+  yrs <- seq(start_year, end_year, by = step); n_age <- length(age_labels)
+  fert_idx <- match(names(base_asfr), age_labels)
+  popM <- list(); popF <- list(); totals <- list()
+  curM <- init_m; curF <- init_f
+  for (yr in yrs) {
+    yc <- as.character(yr)
+    # Fertility
+    asfr <- adjust_asfr(base_asfr, tfr_vec[yc])
+    births <- get_births_by_sex(sum(curF[fert_idx] * asfr*5), srb)
+    # Survival
+    nxtM <- numeric(n_age); nxtF <- numeric(n_age)
+    for (g in 2:n_age) {
+      nxtM[g] <- curM[g-1] * (1 - qx_m[g-1, yc])
+      nxtF[g] <- curF[g-1] * (1 - qx_f[g-1, yc])
+    }
+    nxtM[1] <- births["male"]; nxtF[1] <- births["female"]
+    # store
+    curM <- nxtM; curF <- nxtF
+    popM[[yc]] <- curM; popF[[yc]] <- curF
+    totals[[yc]] <- list(male = sum(curM), female = sum(curF), total = sum(curM)+sum(curF))
+  }
+  list(male = popM, female = popF, totals = totals)
+}
+
+###########################
+# 7. Run projection (2020‑2100)
+###########################
+results <- population_projection(2020, 2100, 5,
+                                 initial_pop_male, initial_pop_female,
+                                 qx_matrix_male, qx_matrix_female,
+                                 base_asfr, tsfr_series, srb = 105)
+
+# Simple diagnostic: print total population trajectory
+print(sapply(results$totals, "[[", "total"))
+
+
+
+###########################
+# 8. Draw population pyramids (2020, 2040, 2080, 2100)
+###########################
+plot_population_pyramid <- function(male_vec, female_vec, year_label) {
+  df <- data.frame(
+    Age   = factor(age_groups, levels = rev(age_groups)),
+    Male   = -as.numeric(male_vec),
+    Female =  as.numeric(female_vec)
+  )
+  df_long <- reshape2::melt(df, id.vars = "Age", variable.name = "Sex", value.name = "Population")
+  max_val <- max(abs(df_long$Population))
+  
+  
+  p <- ggplot2::ggplot(df_long, ggplot2::aes(x = Population, y = Age, fill = Sex)) +
+    ggplot2::geom_bar(stat = "identity", width = 0.9) +
+    ggplot2::scale_x_continuous(
+      limits = c(-max_val, max_val),
+      
+      labels = function(x) {
+        paste0(format(abs(x) / 10000000, digits = 1, nsmall = 1), "millions")
+      }
+    ) +
+    ggplot2::scale_fill_manual(values = c(Male = "skyblue", Female = "pink")) +
+    ggplot2::labs(
+      title = paste("Population Pyramid", year_label), 
+      x = "Population (10 millions)", 
+      y = "Age group"
+    ) +
+    ggplot2::theme_minimal() +
+    ggplot2::theme(
+      legend.position = "bottom",
+      plot.title = ggplot2::element_text(hjust = 0.5, face = "bold")
+    )
+  
+  return(p)
+}
+
+
+dir.create("population_pyramids", showWarnings = FALSE)
+
+years_to_plot <- c(2020, 2040, 2080, 2100)
+for (yr in years_to_plot) {
+  if (yr == 2020) {
+    m_pop <- initial_pop_male; f_pop <- initial_pop_female
+  } else {
+    m_pop <- results$male[[as.character(yr)]]
+    f_pop <- results$female[[as.character(yr)]]
+  }
+  
+  
+  p <- plot_population_pyramid(m_pop, f_pop, yr)
+  
+  
+  file_name <- paste0("population_pyramids/pyramid_", yr, ".png")
+  ggplot2::ggsave(file_name, plot = p, width = 8, height = 6, dpi = 300)
+  
+  
+  print(p)
+  
+  cat("图表已保存到:", file_name, "\n")
+}
+
+###########################
+# 8
+###########################
+plot_total_population_trend <- function(results) {
+  
+  years <- as.numeric(names(results$totals))
+  total_pop <- sapply(results$totals, "[[", "total")
+  male_pop <- sapply(results$totals, "[[", "male")
+  female_pop <- sapply(results$totals, "[[", "female")
+  
+  
+  df <- data.frame(
+    Year = years,
+    Total = total_pop / 10000000,  
+    Male = male_pop / 10000000,
+    Female = female_pop / 10000000
+  )
+  
+  
+  df_long <- reshape2::melt(df, id.vars = "Year", 
+                            variable.name = "Population_Type", 
+                            value.name = "Population")
+  
+  
+  ggplot2::ggplot(df_long, ggplot2::aes(x = Year, y = Population, color = Population_Type, group = Population_Type)) +
+    ggplot2::geom_line(size = 1) +
+    ggplot2::geom_point() +
+    ggplot2::scale_color_manual(values = c("Total" = "black", "Male" = "skyblue", "Female" = "pink")) +
+    ggplot2::labs(
+      title = "Total Population Trend (2020-2100)",
+      x = "Year",
+      y = "Population (10 millions)",
+      color = "Population Type"
+    ) +
+    ggplot2::theme_minimal() +
+    ggplot2::theme(
+      legend.position = "bottom",
+      plot.title = ggplot2::element_text(hjust = 0.5, face = "bold")
+    )
+}
+
+###########################
+# 8.2 
+###########################
+plot_elderly_dependency_ratio <- function(results) {
+  years <- as.numeric(names(results$totals))
+  dependency_ratios <- numeric(length(years))
+  
+  for (i in 1:length(years)) {
+    yr <- as.character(years[i])
+    
+    #
+    if (yr == "2020") {
+      m_pop <- initial_pop_male
+      f_pop <- initial_pop_female
+    } else {
+      m_pop <- results$male[[yr]]
+      f_pop <- results$female[[yr]]
+    }
+    
+    
+    
+    elderly_indices <- which(age_midpoints >= 65)
+    working_indices <- which(age_midpoints >= 15 & age_midpoints < 65)
+    
+    elderly_pop <- sum(m_pop[elderly_indices] + f_pop[elderly_indices])
+    working_age_pop <- sum(m_pop[working_indices] + f_pop[working_indices])
+    
+    
+    dependency_ratios[i] <- (elderly_pop / working_age_pop) * 100
+  }
+  
+  
+  df <- data.frame(
+    Year = years,
+    Dependency_Ratio = dependency_ratios
+  )
+  
+  
+  ggplot2::ggplot(df, ggplot2::aes(x = Year, y = Dependency_Ratio)) +
+    ggplot2::geom_line(color = "darkred", size = 1) +
+    ggplot2::geom_point(color = "darkred") +
+    ggplot2::labs(
+      title = "Elderly Dependency Ratio (2020-2100)",
+      subtitle = "Elderly (65+) as percentage of working age population (15-64)",
+      x = "Year",
+      y = "Dependency Ratio (%)"
+    ) +
+    ggplot2::theme_minimal() +
+    ggplot2::theme(
+      plot.title = ggplot2::element_text(hjust = 0.5, face = "bold"),
+      plot.subtitle = ggplot2::element_text(hjust = 0.5)
+    )
+}
+
+###########################
+# 8.3 
+###########################
+plot_age_distribution_trend <- function(results) {
+  years <- as.numeric(names(results$totals))
+  
+  key_age_groups <- c("0-14", "15-64", "65+")
+  
+  
+  df <- data.frame(
+    Year = years,
+    Children = numeric(length(years)),
+    WorkingAge = numeric(length(years)),
+    Elderly = numeric(length(years))
+  )
+  
+  
+  for (i in 1:length(years)) {
+    yr <- as.character(years[i])
+    
+    
+    if (yr == "2020") {
+      m_pop <- initial_pop_male
+      f_pop <- initial_pop_female
+    } else {
+      m_pop <- results$male[[yr]]
+      f_pop <- results$female[[yr]]
+    }
+    
+    total_pop <- sum(m_pop + f_pop)
+    
+    
+    children_indices <- which(age_midpoints < 15)
+    working_indices <- which(age_midpoints >= 15 & age_midpoints < 65)
+    elderly_indices <- which(age_midpoints >= 65)
+    
+    children_pop <- sum(m_pop[children_indices] + f_pop[children_indices])
+    working_age_pop <- sum(m_pop[working_indices] + f_pop[working_indices])
+    elderly_pop <- sum(m_pop[elderly_indices] + f_pop[elderly_indices])
+    
+    #
+    df$Children[i] <- (children_pop / total_pop) * 100
+    df$WorkingAge[i] <- (working_age_pop / total_pop) * 100
+    df$Elderly[i] <- (elderly_pop / total_pop) * 100
+  }
+  
+  
+  df_long <- reshape2::melt(df, id.vars = "Year", 
+                            variable.name = "Age_Group", 
+                            value.name = "Percentage")
+  
+  
+  df_long$Age_Group <- factor(df_long$Age_Group, 
+                              levels = c("Children", "WorkingAge", "Elderly"),
+                              labels = c("Children (0-14)", "Working Age (15-64)", "Elderly (65+)"))
+  
+  
+  ggplot2::ggplot(df_long, ggplot2::aes(x = Year, y = Percentage, color = Age_Group, group = Age_Group)) +
+    ggplot2::geom_line(size = 1) +
+    ggplot2::geom_point() +
+    ggplot2::scale_color_manual(values = c("Children (0-14)" = "green3", 
+                                           "Working Age (15-64)" = "blue", 
+                                           "Elderly (65+)" = "red")) +
+    ggplot2::labs(
+      title = "Population Age Distribution Trends (2020-2100)",
+      x = "Year",
+      y = "Percentage of Total Population (%)",
+      color = "Age Group"
+    ) +
+    ggplot2::theme_minimal() +
+    ggplot2::theme(
+      legend.position = "bottom",
+      plot.title = ggplot2::element_text(hjust = 0.5, face = "bold")
+    )
+}
+
+###########################
+# 8.4 
+###########################
+save_all_charts <- function(results) {
+  # 保存
+  dir.create("population_charts", showWarnings = FALSE)
+  
+  
+  p_total <- plot_total_population_trend(results)
+  ggplot2::ggsave("population_charts/total_population_trend.png", plot = p_total, width = 10, height = 6, dpi = 300)
+  print(p_total)
+  
+  
+  p_ratio <- plot_elderly_dependency_ratio(results)
+  ggplot2::ggsave("population_charts/elderly_dependency_ratio.png", plot = p_ratio, width = 10, height = 6, dpi = 300)
+  print(p_ratio)
+  
+  
+  p_age <- plot_age_distribution_trend(results)
+  ggplot2::ggsave("population_charts/age_distribution_trend.png", plot = p_age, width = 10, height = 6, dpi = 300)
+  print(p_age)
+  
+  
+  years_to_plot <- c(2020, 2040, 2080, 2100)
+  for (yr in years_to_plot) {
+    if (yr == 2020) {
+      m_pop <- initial_pop_male; f_pop <- initial_pop_female
+    } else {
+      m_pop <- results$male[[as.character(yr)]]
+      f_pop <- results$female[[as.character(yr)]]
+    }
+    
+    p_pyramid <- plot_population_pyramid(m_pop, f_pop, yr)
+    file_name <- paste0("population_charts/pyramid_", yr, ".png")
+    ggplot2::ggsave(file_name, plot = p_pyramid, width = 8, height = 6, dpi = 300)
+    print(p_pyramid)
+  }
+  
+  cat("所有图表已保存到 'population_charts' 目录\n")
+}
+
+
+save_all_charts(results)
+###########################
+# 9. Enhanced Excel Export Function
+###########################
+export_results_to_excel <- function(results, file = "population_projection.xlsx") {
+  wb <- openxlsx::createWorkbook()
+  
+  
+  yrs <- as.numeric(names(results$totals))
+  
+  
+  df_summary <- data.frame(Year = yrs,
+                           Total_Population = sapply(results$totals, "[[", "total"),
+                           Male_Population = sapply(results$totals, "[[", "male"),
+                           Female_Population = sapply(results$totals, "[[", "female"))
+  
+  
+  df_summary$Male_Percent <- df_summary$Male_Population / df_summary$Total_Population * 100
+  df_summary$Female_Percent <- df_summary$Female_Population / df_summary$Total_Population * 100
+  
+  
+  df_summary$Male_Percent <- round(df_summary$Male_Percent, 2)
+  df_summary$Female_Percent <- round(df_summary$Female_Percent, 2)
+  
+  
+  openxlsx::addWorksheet(wb, "Population_Summary")
+  openxlsx::writeData(wb, "Population_Summary", df_summary, borders = "all")
+  
+  
+  openxlsx::setColWidths(wb, "Population_Summary", 1:ncol(df_summary), width = "auto")
+  openxlsx::addStyle(wb, "Population_Summary", openxlsx::createStyle(textDecoration = "bold"), rows = 1, cols = 1:ncol(df_summary))
+  
+  
+  
+  openxlsx::addWorksheet(wb, "Age_Distribution")
+  
+  
+  age_dist_data <- data.frame(Age_Group = age_groups)
+  
+ 
+  for(yr in as.character(yrs)) {
+    if(yr == "2020") {
+      m_data <- initial_pop_male
+      f_data <- initial_pop_female
+    } else {
+      m_data <- results$male[[yr]]
+      f_data <- results$female[[yr]]
+    }
+    
+    
+    total_by_age <- m_data + f_data
+    age_dist_data[[paste0("Total_", yr)]] <- total_by_age
+    
+    
+    age_dist_data[[paste0("Percent_", yr)]] <- round(total_by_age / sum(total_by_age) * 100, 2)
+  }
+  
+ 
+  openxlsx::writeData(wb, "Age_Distribution", age_dist_data, borders = "all")
+  openxlsx::setColWidths(wb, "Age_Distribution", 1:ncol(age_dist_data), width = "auto")
+  openxlsx::addStyle(wb, "Age_Distribution", openxlsx::createStyle(textDecoration = "bold"), rows = 1, cols = 1:ncol(age_dist_data))
+  
+ 
+  for(yr in as.character(yrs)) {
+    sheet_name <- paste0("Details_", yr)
+    openxlsx::addWorksheet(wb, sheet_name)
+    
+    if(yr == "2020") {
+      m_data <- initial_pop_male
+      f_data <- initial_pop_female
+    } else {
+      m_data <- results$male[[yr]]
+      f_data <- results$female[[yr]]
+    }
+    
+    
+    detail_data <- data.frame(
+      Age_Group = age_groups,
+      Male_Population = m_data,
+      Female_Population = f_data,
+      Total_Population = m_data + f_data
+    )
+    
+    
+    total_pop <- sum(detail_data$Total_Population)
+    detail_data$Age_Group_Percent <- round(detail_data$Total_Population / total_pop * 100, 2)
+    detail_data$Male_Percent_of_Age_Group <- round(detail_data$Male_Population / detail_data$Total_Population * 100, 2)
+    detail_data$Female_Percent_of_Age_Group <- round(detail_data$Female_Population / detail_data$Total_Population * 100, 2)
+    detail_data$Male_Percent_of_Total <- round(detail_data$Male_Population / total_pop * 100, 2)
+    detail_data$Female_Percent_of_Total <- round(detail_data$Female_Population / total_pop * 100, 2)
+    
+    # 写入
+    openxlsx::writeData(wb, sheet_name, detail_data, borders = "all")
+    openxlsx::setColWidths(wb, sheet_name, 1:ncol(detail_data), width = "auto")
+    openxlsx::addStyle(wb, sheet_name, openxlsx::createStyle(textDecoration = "bold"), rows = 1, cols = 1:ncol(detail_data))
+  }
+  
+  # 保存
+  openxlsx::saveWorkbook(wb, file, overwrite = TRUE)
+  
+  cat("Excel文件已保存至:", file.path(getwd(), file), "\n")
+}
+
+#
+export_results_to_excel(results, file = "C:/Users/renji/Desktop/population_pyramids")
+
