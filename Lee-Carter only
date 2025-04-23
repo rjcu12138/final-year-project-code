@@ -1,0 +1,256 @@
+#Lee-Carter
+
+
+age_groups <- c("0-4", "5-9", "10-14", "15-19", "20-24", "25-29", "30-34", 
+                "35-39", "40-44", "45-49", "50-54", "55-59", "60-64", "65-69", 
+                "70-74", "75-79", "80-84", "85-89", "90-94", "95-99", "100+")
+age_midpoints <- c(2.5, 7.5, 12.5, 17.5, 22.5, 27.5, 32.5, 37.5, 42.5, 47.5,
+                   52.5, 57.5, 62.5, 67.5, 72.5, 77.5, 82.5, 87.5, 92.5, 97.5, 102.5)
+
+# 2000
+qx_male_2000 <- c(0.005253, 0.000645, 0.000505, 0.000771, 0.001211, 0.001357, 
+                  0.001657, 0.00215, 0.00305, 0.004327, 0.00671, 0.010572, 
+                  0.017916, 0.029595, 0.051027, 0.07989, 0.133277, 0.188755, 
+                  0.268625, 0.241401, 0.329415)
+
+qx_female_2000 <- c(0.00698, 0.000441, 0.000333, 0.000475, 0.000724, 0.00084, 
+                    0.000981, 0.001185, 0.001699, 0.00257, 0.004187, 0.006632, 
+                    0.011426, 0.01906, 0.034113, 0.055705, 0.097484, 0.14536, 
+                    0.231229, 0.29802, 0.375236)
+
+# 2005
+qx_male_2005 <- c(0.00299, 0.000534, 0.000486, 0.000865, 0.001263, 0.001411, 
+                  0.001727, 0.002176, 0.002977, 0.004324, 0.005861, 0.008849, 
+                  0.014292, 0.023704, 0.039186, 0.063018, 0.100556, 0.155251, 
+                  0.224956, 0.31962, 0.392157)
+
+qx_female_2005 <- c(0.003639, 0.000286, 0.000274, 0.000438, 0.000512, 0.0006, 
+                    0.000788, 0.00106, 0.001288, 0.002201, 0.003267, 0.005197, 
+                    0.008951, 0.015139, 0.02607, 0.045332, 0.075946, 0.118513, 
+                    0.191788, 0.235944, 0.321767)
+
+# 2010
+qx_male_2010 <- c(0.001314, 0.000356, 0.000368, 0.00052, 0.000703, 0.000844, 
+                  0.001109, 0.001588, 0.002373, 0.003503, 0.005485, 0.00804, 
+                  0.01302, 0.021257, 0.037015, 0.059132, 0.09856, 0.146531, 
+                  0.211655, 0.212067, 0.507276)
+
+qx_female_2010 <- c(0.001267, 0.000235, 0.000219, 0.000246, 0.000304, 0.000367, 
+                    0.0005, 0.000713, 0.001113, 0.001685, 0.002811, 0.00429, 
+                    0.007492, 0.013055, 0.024356, 0.040888, 0.073985, 0.115287, 
+                    0.180245, 0.219464, 0.436343)
+
+# 2015
+qx_male_2015 <- c(0.000877, 0.000236, 0.000256, 0.00045, 0.000446, 0.000583, 
+                  0.000789, 0.001157, 0.001784, 0.00268, 0.003973, 0.006784, 
+                  0.009977, 0.015935, 0.026767, 0.043595, 0.074284, 0.10971, 
+                  0.155486, 0.192661, 0.268817)
+
+qx_female_2015 <- c(0.000752, 0.000155, 0.000145, 0.00018, 0.000168, 0.000213, 
+                    0.000311, 0.000524, 0.000801, 0.001254, 0.001779, 0.003305, 
+                    0.00506, 0.008802, 0.015814, 0.029546, 0.052084, 0.082632, 
+                    0.130756, 0.18468, 0.29453)
+
+# 2020
+qx_male_2020 <- c(0.0006036, 0.000157, 0.000211, 0.000358, 0.000446, 0.000557, 
+                  0.000691, 0.001082, 0.001805, 0.002783, 0.004092, 0.005974, 
+                  0.010514, 0.015272, 0.024952, 0.042791, 0.072455, 0.113298, 
+                  0.159348, 0.191126, 0.211449)
+
+qx_female_2020 <- c(0.0004934, 0.00012, 0.000149, 0.000197, 0.000214, 0.000242, 
+                    0.000292, 0.000429, 0.000702, 0.00117, 0.001811, 0.002601, 
+                    0.004812, 0.007833, 0.014471, 0.027714, 0.052787, 0.089934, 
+                    0.144825, 0.192801, 0.246904)
+
+
+mx_male <- matrix(c(qx_male_2000, qx_male_2005, qx_male_2010, qx_male_2015, qx_male_2020), ncol = 5)
+colnames(mx_male) <- c(2000, 2005, 2010, 2015, 2020)
+rownames(mx_male) <- age_groups
+
+mx_female <- matrix(c(qx_female_2000, qx_female_2005, qx_female_2010, qx_female_2015, qx_female_2020), ncol = 5)
+colnames(mx_female) <- c(2000, 2005, 2010, 2015, 2020)
+rownames(mx_female) <- age_groups
+
+
+log_mx_male <- log(mx_male)
+log_mx_female <- log(mx_female)
+
+
+alpha_x_male <- rowMeans(log_mx_male)
+alpha_x_female <- rowMeans(log_mx_female)
+
+
+centered_male <- log_mx_male - alpha_x_male
+centered_female <- log_mx_female - alpha_x_female
+
+
+svd_male <- svd(centered_male)
+svd_female <- svd(centered_female)
+
+
+beta_x_male <- svd_male$u[,1]
+kt_male <- svd_male$d[1] * svd_male$v[,1]
+beta_x_female <- svd_female$u[,1]
+kt_female <- svd_female$d[1] * svd_female$v[,1]
+
+
+beta_x_male <- beta_x_male / sum(abs(beta_x_male))
+beta_x_female <- beta_x_female / sum(abs(beta_x_female))
+
+
+if(kt_male[1] < kt_male[5]) {
+  beta_x_male <- -beta_x_male
+  kt_male <- -kt_male
+}
+
+if(kt_female[1] < kt_female[5]) {
+  beta_x_female <- -beta_x_female
+  kt_female <- -kt_female
+}
+
+
+smooth_beta_male <- predict(smooth.spline(age_midpoints, beta_x_male, spar=0.6))$y
+smooth_beta_female <- predict(smooth.spline(age_midpoints, beta_x_female, spar=0.6))$y
+
+
+smooth_beta_male <- smooth_beta_male / sum(abs(smooth_beta_male))
+smooth_beta_female <- smooth_beta_female / sum(abs(smooth_beta_female))
+
+
+beta_x_male <- smooth_beta_male
+beta_x_female <- smooth_beta_female
+
+
+results <- data.frame(
+  age = age_midpoints,
+  age_group = age_groups,
+  alpha_male = alpha_x_male,
+  beta_male = beta_x_male,
+  alpha_female = alpha_x_female,
+  beta_female = beta_x_female
+)
+
+
+kt_results <- data.frame(
+  year = c(2000, 2005, 2010, 2015, 2020),
+  kt_male = kt_male,
+  kt_female = kt_female
+)
+
+
+fitted_log_mx_male <- outer(alpha_x_male, rep(1, 5)) + 
+  outer(beta_x_male, kt_male)
+fitted_log_mx_female <- outer(alpha_x_female, rep(1, 5)) + 
+  outer(beta_x_female, kt_female)
+
+
+fitted_mx_male <- exp(fitted_log_mx_male)
+fitted_mx_female <- exp(fitted_log_mx_female)
+
+
+error_male <- (mx_male - fitted_mx_male) / mx_male * 100
+error_female <- (mx_female - fitted_mx_female) / mx_female * 100
+
+
+ss_total_male <- sum((log(mx_male) - mean(log(mx_male)))^2)
+ss_res_male <- sum((log(mx_male) - fitted_log_mx_male)^2)
+r_squared_male <- 1 - (ss_res_male / ss_total_male)
+
+ss_total_female <- sum((log(mx_female) - mean(log(mx_female)))^2)
+ss_res_female <- sum((log(mx_female) - fitted_log_mx_female)^2)
+r_squared_female <- 1 - (ss_res_female / ss_total_female)
+
+
+cat("男性死亡率拟合平均百分比误差: ", mean(abs(error_male)), "%\n")
+cat("女性死亡率拟合平均百分比误差: ", mean(abs(error_female)), "%\n")
+cat("男性死亡率 R²: ", r_squared_male, "\n")
+cat("女性死亡率 R²: ", r_squared_female, "\n")
+
+
+predict_kt <- function(kt_values, years, target_years, deceleration_factor = 0.995) {
+  
+  last_drift <- (kt_values[5] - kt_values[1]) / (years[5] - years[1])
+  
+  
+  kt_pred <- numeric(length(target_years))
+  kt_pred[1] <- kt_values[5]  
+  
+  for(i in 2:length(target_years)) {
+    
+    last_drift <- last_drift * deceleration_factor
+    kt_pred[i] <- kt_pred[i-1] + last_drift
+  }
+  
+  return(kt_pred)
+}
+
+
+forecast_years <- 2021:2100
+kt_male_pred <- predict_kt(kt_male, c(2000, 2005, 2010, 2015, 2020), forecast_years)
+kt_female_pred <- predict_kt(kt_female, c(2000, 2005, 2010, 2015, 2020), forecast_years)
+
+
+kt_male_all <- c(kt_male, kt_male_pred)
+kt_female_all <- c(kt_female, kt_female_pred)
+years_all <- c(2000, 2005, 2010, 2015, 2020, forecast_years)
+
+
+log_mx_male_pred <- outer(alpha_x_male, rep(1, length(years_all))) + 
+  outer(beta_x_male, kt_male_all)
+log_mx_female_pred <- outer(alpha_x_female, rep(1, length(years_all))) + 
+  outer(beta_x_female, kt_female_all)
+
+mx_male_pred <- exp(log_mx_male_pred)
+mx_female_pred <- exp(log_mx_female_pred)
+
+
+calc_e0 <- function(mx) {
+  n_ages <- length(mx)
+  
+  age_width <- rep(5, n_ages)
+  
+  
+  qx <- 1 - exp(-mx * age_width)
+  px <- 1 - qx
+  
+  
+  lx <- numeric(n_ages + 1)
+  lx[1] <- 100000
+  
+  for(i in 1:n_ages) {
+    lx[i+1] <- lx[i] * px[i]
+  }
+  
+  
+  dx <- lx[1:n_ages] - lx[2:(n_ages+1)]
+  
+  
+  Lx <- age_width * lx[2:(n_ages+1)] + dx * (age_width/2)
+  
+  
+  Tx <- rev(cumsum(rev(Lx)))
+  
+  
+  ex <- Tx / lx[1:n_ages]
+  
+  return(ex[1])  
+}
+
+
+e0_male <- apply(mx_male_pred, 2, calc_e0)
+e0_female <- apply(mx_female_pred, 2, calc_e0)
+
+
+key_years <- c(2020, 2030, 2050, 2070, 2100)
+key_indices <- sapply(key_years, function(y) which(years_all == y))
+
+e0_table <- data.frame(
+  Year = key_years,
+  Male_e0 = e0_male[key_indices],
+  Female_e0 = e0_female[key_indices]
+)
+
+print("模型参数:")
+print(kt_results)
+print("\n关键年份预期寿命预测:")
+print(e0_table)
